@@ -3,8 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 
-// PERBAIKAN IMPORT: Disesuaikan dengan lokasi aslinya (berdasarkan log sebelumnya)
-use App\Http\Controllers\TransaksiController; 
+use App\Http\Controllers\Api\TransaksiController;
 
 // Endpoint Publik (Untuk Login via Dio)
 Route::post('/login', [AuthController::class, 'login']);

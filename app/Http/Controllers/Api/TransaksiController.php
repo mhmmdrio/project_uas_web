@@ -4,62 +4,50 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; // <-- 1. TAMBAHKAN INI UNTUK MENGHILANGKAN GARIS MERAH \DB
-use App\Models\User;
+use App\Models\Transaksi;
 
-class AuthController extends Controller
+class TransaksiController extends Controller
 {
-    public function login(Request $request)
+    // Menyimpan transaksi baru dari aplikasi mobile (Flutter)
+    public function store(Request $request)
     {
+        // 1. Validasi input
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'nama_customer' => 'required|string|max:255',
+            'alamat' => 'required|string',
+            'jenis_cat' => 'required|string',
+            'warna_cat' => 'required|string',
+            'jumlah_beli' => 'required|integer|min:1',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json(['message' => 'Email atau password salah'], 401);
+        // 2. Tentukan harga satuan berdasarkan Jenis Cat
+        $harga_satuan = 0;
+        if ($request->jenis_cat == 'CATYLAC') {
+            $harga_satuan = 100000;
+        } elseif ($request->jenis_cat == 'Vinilex') {
+            $harga_satuan = 85000;
+        } elseif ($request->jenis_cat == 'Dulux') {
+            $harga_satuan = 150000;
         }
 
-        $user = User::where('email', $request->email)->first();
-        $role = $user->role ?? 'Kasir';
+        // 3. Hitung total harga
+        $total_harga = $harga_satuan * $request->jumlah_beli;
 
-        $token = $user->createToken('mobile-token')->plainTextToken;
+        // 4. Simpan ke Database
+        $transaksi = Transaksi::create([
+            'nama_customer' => $request->nama_customer,
+            'alamat' => $request->alamat,
+            'jenis_cat' => $request->jenis_cat,
+            'warna_cat' => $request->warna_cat,
+            'jumlah_beli' => $request->jumlah_beli,
+            'total_harga' => $total_harga,
+        ]);
 
+        // 5. Kembalikan response JSON (dibaca oleh Dio di Flutter)
         return response()->json([
-            'message' => 'Login Berhasil',
-            'user' => [
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $role
-            ],
-            'token' => $token
-        ], 200);
-    }
-
-    // 2. KODE DASHBOARD OWNER YANG SUDAH BERSIH DARI GARIS MERAH
-    public function ownerDashboard()
-    {
-        // Mengambil total transaksi & pendapatan langsung menggunakan facade DB yang sudah di-import
-        $totalTransaksi = DB::table('transaksis')->count();
-        $totalPendapatan = DB::table('transaksis')->sum('total_harga') ?? 0;
-        
-        // Mengambil 5 transaksi terbaru
-        $riwayat = DB::table('transaksis')
-            ->orderBy('id', 'desc')
-            ->limit(5)
-            ->get();
-
-        return response()->json([
-            'total_transaksi' => $totalTransaksi,
-            'total_pendapatan' => $totalPendapatan,
-            'riwayat' => $riwayat
-        ], 200);
-    }
-
-    public function logout(Request $request)
-    {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logout Berhasil'], 200);
+            'message' => 'Transaksi Berhasil Disimpan!',
+            'total_harga' => $total_harga,
+            'data' => $transaksi,
+        ], 201);
     }
 }
